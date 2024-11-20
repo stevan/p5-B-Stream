@@ -23,14 +23,12 @@ package Foo::Bar {
 }
 
 my $color_fmt = "\e[48;2;%d;%d;%d;m";
-my $invert    = "\e[7m";
 my $reset     = "\e[0m";
 
 my sub gen_color { map { int(rand(50)) * 5 } qw[ r g b ] }
 
-my $color = [gen_color];
-
-my @colors = ($color);
+my @colors = ([gen_color]);
+my @indent = ('..');
 
 my @ops;
 my $count = B::Stream
@@ -38,19 +36,24 @@ my $count = B::Stream
     ->when( B::Stream::Tools::Events->OnStatementChange, sub ($) { push @colors => [gen_color] })
     ->when( B::Stream::Tools::Events->InsideCallSite, sub ($op) {
         if ($op->name eq 'entersub') {
-            push @colors => [gen_color];
+            if ($op->op->private & B::OPpENTERSUB_INARGS) {
+                push @indent => '==';
+            }
+            else {
+                push @indent => '__';
+            }
         }
     })
     ->peek(sub ($op) {
         say((sprintf $color_fmt => $colors[-1]->@*),
-            (sprintf '%-65s # %-40s ancestors: %s',
-            ('..' x $op->depth).$op,
+            (sprintf '%-50s # %-35s ^(%s)',
+            ($indent[-1] x $op->depth).$op,
             ($op->statement // '~'),
-            (join ' -> ' => map $_->name, $op->stack->@*)),
+            (join ',' => map $_->name, $op->stack->@*)),
             $reset)
         ;
         if ($op->name eq 'gv') {
-            pop @colors;
+            pop @indent;
         }
         #my $x = <>;
     })
