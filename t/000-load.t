@@ -43,7 +43,7 @@ my $count = B::Stream
     })
     ->peek(sub ($op) {
         say((sprintf $color_fmt => $colors[-1]->@*),
-            (sprintf '%-60s # %-40s ancestors: %s',
+            (sprintf '%-65s # %-40s ancestors: %s',
             ('..' x $op->depth).$op,
             ($op->statement // '~'),
             (join ' -> ' => map $_->name, $op->stack->@*)),
