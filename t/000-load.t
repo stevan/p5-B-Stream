@@ -12,7 +12,7 @@ package Foo::Bar {
     use Bar;
 
     sub foobar {
-        my $foo = Foo::foo();
+        my $foo = Foo::foo(Foo::bar());
         my $bar = Foo::bar();
         my $x;
         foreach my $i ( 0 .. 10 ) {
@@ -23,25 +23,35 @@ package Foo::Bar {
 }
 
 my $color_fmt = "\e[48;2;%d;%d;%d;m";
-my $reset     = "\e[0;m";
+my $invert    = "\e[7m";
+my $reset     = "\e[0m";
 
-my sub gen_color { map { int(rand(255)) } qw[ r g b ] }
+my sub gen_color { map { int(rand(50)) * 5 } qw[ r g b ] }
 
-my @color = gen_color;
+my $color = [gen_color];
+
+my @colors = ($color);
 
 my @ops;
 my $count = B::Stream
     ->new( from => \&Foo::Bar::foobar )
-    ->when( B::Stream::Tools::Events->OnStatementChange, sub ($) { @color = gen_color })
-    ->when( sub ($op) { $op->name eq 'gv' }, sub ($) { @color = reverse @color })
+    ->when( B::Stream::Tools::Events->OnStatementChange, sub ($) { push @colors => [gen_color] })
+    ->when( B::Stream::Tools::Events->InsideCallSite, sub ($op) {
+        if ($op->name eq 'entersub') {
+            push @colors => [gen_color];
+        }
+    })
     ->peek(sub ($op) {
-        say((sprintf $color_fmt => @color),
+        say((sprintf $color_fmt => $colors[-1]->@*),
             (sprintf '%-60s # %-40s ancestors: %s',
             ('..' x $op->depth).$op,
             ($op->statement // '~'),
             (join ' -> ' => map $_->name, $op->stack->@*)),
             $reset)
         ;
+        if ($op->name eq 'gv') {
+            pop @colors;
+        }
         #my $x = <>;
     })
     ->grep(sub ($op) { $op->name eq 'gv' })

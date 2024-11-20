@@ -5,6 +5,25 @@ use B::Stream::Functional::Consumer;
 
 package B::Stream::Tools::Events {
 
+    sub InsideCallSite {
+        return B::Stream::Functional::Predicate->new(
+            f => sub ($op) {
+                state $in_callsite = false;
+                if ($op->name eq 'entersub') {
+                    $in_callsite = true;
+                    return true;
+                }
+
+                if ($in_callsite && $op->name eq 'gv') {
+                    $in_callsite = false;
+                    return true;
+                }
+
+                return $in_callsite;
+            }
+        )
+    }
+
     sub OnStatementChange {
         return B::Stream::Functional::Predicate->new(
             f => sub ($op) {
