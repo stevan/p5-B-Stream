@@ -45,9 +45,10 @@ my $count = B::Stream
     })
     ->grep(sub ($op) { $op->name eq 'gv' })
     ->peek(sub ($op) { push @ops => $op })
-    ->reduce(0, sub ($op, $acc) { $acc + 1 });
+    ->collect( B::Stream::Tools::Collectors->JoinWith(", ") );
+    #->reduce(0, sub ($op, $acc) { $acc + 1 });
 
-say "Count: $count";
+say "Count: ($count)";
 say "Ops: ";
 say join "\n" => map {
     ' -> '.(join ':', $_->name, $_->op->gv->NAME)

@@ -70,10 +70,10 @@ class B::Stream {
         )
     }
 
-    method collect ($acc=undef) {
+    method collect ($acc) {
         wrap_or_apply B::Stream::Operation::Collect->new(
             source      => $source,
-            accumulator => $acc // B::Stream::Functional::Accumulator->new
+            accumulator => $acc
         )
     }
 
