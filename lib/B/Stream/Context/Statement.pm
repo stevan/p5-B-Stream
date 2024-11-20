@@ -6,6 +6,8 @@ class B::Stream::Context::Statement :isa(B::Stream::Context) {
     use overload '""' => \&to_string;
     field $op :param :reader;
 
+    method addr { ${ $op } }
+
     method label   { $op->label   }
     method file    { $op->file    }
     method line    { $op->line    }

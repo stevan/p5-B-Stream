@@ -19,9 +19,13 @@ use B::Stream::Operation::ForEach;
 use B::Stream::Operation::Map;
 use B::Stream::Operation::Grep;
 use B::Stream::Operation::Peek;
+use B::Stream::Operation::When;
 
 use B::Stream::Source;
 use B::Stream::Source::Optree;
+
+use B::Stream::Tools::Events;
+use B::Stream::Tools::Collectors;
 
 class B::Stream {
     field $from   :param         = undef;
@@ -76,6 +80,16 @@ class B::Stream {
     ## ---------------------------------------------------------------------------------------------
     ## Operations
     ## ---------------------------------------------------------------------------------------------
+
+    method when ($predicate, $f) {
+        wrap_or_apply B::Stream::Operation::When->new(
+            source    => $source,
+            consumer  => blessed $f ? $f : B::Stream::Functional::Consumer->new( f => $f ),
+            predicate => blessed $predicate
+                            ? $predicate
+                            : B::Stream::Functional::Predicate->new( f => $predicate )
+        )
+    }
 
     method map ($f) {
         wrap_or_apply B::Stream::Operation::Map->new(
