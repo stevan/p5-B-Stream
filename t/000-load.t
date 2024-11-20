@@ -48,7 +48,7 @@ my $count = B::Stream
     ->map(sub ($op) {
         my $gv = $op->op->gv;
         join '::' => $gv->STASH->NAME, $gv->NAME
-    }
+    })
     ->collect( B::Stream::Tools::Collectors->JoinWith(", ") );
     #->reduce(0, sub ($op, $acc) { $acc + 1 });
 

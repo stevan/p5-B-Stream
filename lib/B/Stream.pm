@@ -93,8 +93,8 @@ class B::Stream {
 
     method map ($f) {
         wrap_or_apply B::Stream::Operation::Map->new(
-            source   => $source,
-            consumer => blessed $f ? $f : B::Stream::Functional::Mapper->new( f => $f )
+            source => $source,
+            mapper => blessed $f ? $f : B::Stream::Functional::Mapper->new( f => $f )
         )
     }
 
