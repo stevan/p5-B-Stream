@@ -2,16 +2,21 @@
 use v5.40;
 use experimental qw[ class ];
 
-class B::Stream::Context::Optree :isa(B::Stream::Context) {
-    field $source :param;
-    field $op     :param :reader;
+class B::Stream::Context::Opcode :isa(B::Stream::Context) {
+    use overload '""' => \&to_string;
+
+    field $stack     :param :reader;
+    field $statement :param :reader;
+    field $op        :param :reader;
 
     field $name    :reader;
+    field $depth   :reader;
     field $is_null :reader = false;
 
     ADJUST {
         $is_null = $op->name eq 'null';
         $name    = $is_null ? substr(B::ppname( $op->targ ), 3) : $op->name;
+        $depth   = scalar @$stack;
     }
 
     ## ---------------------------------------------------------------------------------------------
@@ -42,5 +47,9 @@ class B::Stream::Context::Optree :isa(B::Stream::Context) {
     ## Context stuff
     ## ---------------------------------------------------------------------------------------------
 
-    method depth { $source->depth }
+    method parent { $stack->[-1] }
+
+    method to_string {
+        sprintf '%s[%s](%d)' => $self->type, $self->name, $self->addr;
+    }
 }

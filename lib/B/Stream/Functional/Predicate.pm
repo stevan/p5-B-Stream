@@ -5,5 +5,5 @@ use experimental qw[ class ];
 class B::Stream::Functional::Predicate :isa(B::Stream::Functional) {
     field $f :param;
 
-    method apply (@args) { return !! $f->(@args) }
+    method apply ($arg) { return !! $f->($arg) }
 }

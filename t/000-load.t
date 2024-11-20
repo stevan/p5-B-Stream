@@ -19,13 +19,24 @@ package Foo::Bar {
 
 my $acc = B::Stream::Functional::Accumulator->new;
 
-B::Stream->new( from => \&Foo::Bar::foobar )
-    ->collect($acc)
-    ->foreach(sub ($op) {
-        say(('..' x $op->depth), sprintf '%s[%s](%d)', $op->type, $op->name, $op->addr);
-        my $x = <>;
-    });
+my @ops;
+my $count = B::Stream
+    ->new( from => \&Foo::Bar::foobar )
+    ->peek(sub ($op) {
+        say sprintf '%-40s # %-40s ancestors: %s',
+            ('..' x $op->depth).$op,
+            ($op->statement // '~'),
+            (join ' -> ' => map $_->name, $op->stack->@*);
+        #my $x = <>;
+    })
+    ->grep(sub ($op) { $op->name eq 'gv' })
+    ->peek(sub ($op) { push @ops => $op })
+    ->reduce(0, sub ($op, $acc) { $acc + 1 });
 
-say join "\n" => map $_->name, $acc->result;
+say "Count: $count";
+say "Ops: ";
+say join "\n" => map {
+    ' -> '.(join ':', $_->name, $_->op->gv->NAME)
+} @ops;
 
 done_testing;

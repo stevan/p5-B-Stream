@@ -5,5 +5,5 @@ use experimental qw[ class ];
 class B::Stream::Functional::Consumer :isa(B::Stream::Functional) {
     field $f :param;
 
-    method apply (@args) { $f->(@args); return; }
+    method apply ($arg) { $f->($arg); return; }
 }
