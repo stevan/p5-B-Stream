@@ -33,6 +33,7 @@ my @ops;
 my $count = B::Stream
     ->new( from => \&Foo::Bar::foobar )
     ->when( B::Stream::Tools::Events->OnStatementChange, sub ($) { @color = gen_color })
+    ->when( sub ($op) { $op->name eq 'gv' }, sub ($) { @color = reverse @color })
     ->peek(sub ($op) {
         say((sprintf $color_fmt => @color),
             (sprintf '%-60s # %-40s ancestors: %s',
