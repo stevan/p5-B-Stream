@@ -63,7 +63,7 @@ my $count = B::Stream
     ->collect( B::Stream::Tools::Collectors->JoinWith(", ") );
     #->reduce(0, sub ($op, $acc) { $acc + 1 });
 
-say "Callsites: ($count)";
+say "Called Subs: ($count)";
 say "Ops: ";
 say join "\n" => map {
     ' -> '.(join ':', $_->name, $_->op->gv->NAME)
