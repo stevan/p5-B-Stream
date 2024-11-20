@@ -17,12 +17,15 @@ package Foo::Bar {
     }
 }
 
-my $s = B::Stream->new( from => \&Foo::Bar::foobar );
+my $acc = B::Stream::Functional::Accumulator->new;
 
-$s->foreach(sub ($op) {
-    say(('..' x $op->depth), sprintf '%s[%s](%d)', $op->type, $op->name, $op->addr);
-    my $x = <>;
-});
+B::Stream->new( from => \&Foo::Bar::foobar )
+    ->peek(sub ($op) {
+        say(('..' x $op->depth), sprintf '%s[%s](%d)', $op->type, $op->name, $op->addr);
+        my $x = <>;
+    })
+    ->collect($acc);
 
+say join "\n" => map $_->name, $acc->result;
 
 done_testing;

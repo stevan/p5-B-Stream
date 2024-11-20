@@ -21,17 +21,21 @@ use B::Stream::Source;
 use B::Stream::Source::Optree;
 
 class B::Stream {
-    field $from :param;
-
-    field $source :reader;
+    field $from   :param         = undef;
+    field $source :param :reader = undef;
 
     ADJUST {
-        my $b = B::svref_2object($from);
+        unless ($source) {
+            die "You must pass in the 'from' parameter if you do not supply a source"
+                unless $from;
 
-        die "Currently only CV streams are supported, not $b"
-            unless $b isa B::CV;
+            my $b = B::svref_2object($from);
 
-        $source = B::Stream::Source::Optree->new( cv => $b );
+            die "Currently only CV streams are supported, not $b"
+                unless $b isa B::CV;
+
+            $source = B::Stream::Source::Optree->new( cv => $b );
+        }
     }
 
     method foreach ($f) {
@@ -39,5 +43,30 @@ class B::Stream {
             source   => $source,
             consumer => B::Stream::Functional::Consumer->new( f => $f )
         )->apply
+    }
+
+    method collect ($acc) {
+        B::Stream::Operation::Collect->new(
+            source      => $source,
+            accumulator => $acc
+        )->apply
+    }
+
+    method map ($f) {
+        B::Stream->new(
+            source =>  B::Stream::Operation::Map->new(
+                source   => $source,
+                consumer => B::Stream::Functional::Mapper->new( f => $f )
+            )
+        )
+    }
+
+    method peek ($f) {
+        B::Stream->new(
+            source =>  B::Stream::Operation::Peek->new(
+                source   => $source,
+                consumer => B::Stream::Functional::Consumer->new( f => $f )
+            )
+        )
     }
 }

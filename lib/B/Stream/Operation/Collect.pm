@@ -13,3 +13,4 @@ class B::Stream::Operation::Collect :isa(B::Stream::Operation::Terminal) {
         return $accumulator->result;
     }
 }
+
