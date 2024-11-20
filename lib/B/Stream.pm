@@ -47,6 +47,10 @@ class B::Stream {
             : B::Stream->new( source => $operation )
     }
 
+    ## ---------------------------------------------------------------------------------------------
+    ## Terminals
+    ## ---------------------------------------------------------------------------------------------
+
     method reduce ($init, $f) {
         wrap_or_apply B::Stream::Operation::Reduce->new(
             source  => $source,
@@ -68,6 +72,10 @@ class B::Stream {
             accumulator => $acc // B::Stream::Functional::Accumulator->new
         )
     }
+
+    ## ---------------------------------------------------------------------------------------------
+    ## Operations
+    ## ---------------------------------------------------------------------------------------------
 
     method map ($f) {
         wrap_or_apply B::Stream::Operation::Map->new(

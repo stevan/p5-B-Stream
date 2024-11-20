@@ -17,8 +17,6 @@ package Foo::Bar {
     }
 }
 
-my $acc = B::Stream::Functional::Accumulator->new;
-
 my @ops;
 my $count = B::Stream
     ->new( from => \&Foo::Bar::foobar )
