@@ -14,7 +14,7 @@ package B::Stream::Tools::Events {
                     return true;
                 }
 
-                if ($in_callsite && $op->name eq 'gv') {
+                if ($in_callsite && ($op->name eq 'gv' || $op->name eq 'method_named')) {
                     $in_callsite = false;
                     return true;
                 }
