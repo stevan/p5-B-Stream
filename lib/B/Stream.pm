@@ -5,6 +5,8 @@ use experimental qw[ class ];
 use B    ();
 use Carp ();
 
+BEGIN { B::save_BEGINs(); }
+
 use B::Stream::Functional;
 use B::Stream::Functional::Accumulator;
 use B::Stream::Functional::Consumer;
@@ -36,10 +38,16 @@ class B::Stream {
             die "You must pass in the 'from' parameter if you do not supply a source"
                 unless $from;
 
-            my $b = B::svref_2object($from);
-
-            die "Currently only CV streams are supported, not $b"
-                unless $b isa B::CV;
+            my $b;
+            if (blessed $from && $from isa B::CV) {
+                $b = $from;
+            }
+            elsif (reftype $from eq 'CODE') {
+                $b = B::svref_2object($from);
+            }
+            else {
+                die "Currently only CVs are supported (either a CODE ref or B::CV object), not $b"
+            }
 
             $source = B::Stream::Source::Optree->new( cv => $b );
         }

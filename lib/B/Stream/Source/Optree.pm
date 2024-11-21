@@ -16,9 +16,13 @@ class B::Stream::Source::Optree :isa(B::Stream::Source) {
     field $next;
     field @stack;
 
+    field $invisible_statement;
     field $current_statement;
 
     ADJUST {
+        $invisible_statement = B::Stream::Context::InvisibleStatement->new( cv => $cv );
+        $current_statement   = $invisible_statement;
+
         $next = $self->_wrap_in_context($cv->ROOT);
     }
 

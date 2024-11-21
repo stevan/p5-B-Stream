@@ -1,7 +1,8 @@
+package Bar;
 use v5.40;
 
-package Bar {
+sub import { *Foo::Bar::bar = \&bar }
 
-    sub bar { 'BAR' }
+sub bar { 'BAR' }
 
-}
+__END__
