@@ -8,7 +8,7 @@ use Test::More;
 use ok 'B::Stream';
 
 package Foo::Bar {
-    use Foo;
+    use Foo 0.01;
     use Bar;
 
     sub foobar {
