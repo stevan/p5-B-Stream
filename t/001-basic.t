@@ -3,6 +3,8 @@
 use v5.40;
 use experimental qw[ class ];
 
+use lib 't/lib';
+
 use Test::More;
 
 use ok 'B::Stream';
@@ -21,6 +23,9 @@ package Foo::Bar {
         return $x;
     }
 }
+
+
+
 
 my $package = 'Foo::Bar';
 
@@ -42,5 +47,6 @@ subtest '... checking BEGIN blocks' => sub {
         })
     }
 };
+
 
 done_testing;
