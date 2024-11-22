@@ -15,6 +15,7 @@ use B::Stream::Functional::Predicate;
 use B::Stream::Functional::Reducer;
 
 use B::Stream::Operation;
+use B::Stream::Operation::Match;
 use B::Stream::Operation::Reduce;
 use B::Stream::Operation::Collect;
 use B::Stream::Operation::ForEach;
@@ -22,14 +23,18 @@ use B::Stream::Operation::Map;
 use B::Stream::Operation::Grep;
 use B::Stream::Operation::Peek;
 use B::Stream::Operation::When;
+use B::Stream::Operation::TakeUntil;
 
 use B::Stream::Source;
 use B::Stream::Source::Optree;
 
+use B::Stream::Match;
+use B::Stream::Match::Builder;
+
 use B::Stream::Tools::Events;
 use B::Stream::Tools::Collectors;
 
-class B::Stream {
+class B::Stream :isa(B::Stream::Source) {
     field $from   :param         = undef;
     field $source :param :reader = undef;
 
@@ -53,6 +58,7 @@ class B::Stream {
         }
     }
 
+
     my sub wrap_or_apply ($operation) {
         $operation isa B::Stream::Operation::Terminal
             ? $operation->apply
@@ -60,12 +66,19 @@ class B::Stream {
     }
 
     ## ---------------------------------------------------------------------------------------------
+    ## Source API
+    ## ---------------------------------------------------------------------------------------------
+
+    method     next { $source->next     }
+    method has_next { $source->has_next }
+
+    ## ---------------------------------------------------------------------------------------------
     ## Terminals
     ## ---------------------------------------------------------------------------------------------
 
     method reduce ($init, $f) {
         wrap_or_apply B::Stream::Operation::Reduce->new(
-            source  => $source,
+            source  => $self,
             initial => $init,
             reducer => blessed $f ? $f : B::Stream::Functional::Reducer->new( f => $f )
         )
@@ -73,15 +86,22 @@ class B::Stream {
 
     method foreach ($f) {
         wrap_or_apply B::Stream::Operation::ForEach->new(
-            source   => $source,
+            source   => $self,
             consumer => blessed $f ? $f : B::Stream::Functional::Consumer->new( f => $f )
         )
     }
 
     method collect ($acc) {
         wrap_or_apply B::Stream::Operation::Collect->new(
-            source      => $source,
+            source      => $self,
             accumulator => $acc
+        )
+    }
+
+    method match ($matcher) {
+        wrap_or_apply B::Stream::Operation::Match->new(
+            matcher  => $matcher,
+            source   => $self,
         )
     }
 
@@ -89,9 +109,16 @@ class B::Stream {
     ## Operations
     ## ---------------------------------------------------------------------------------------------
 
+    method take_until ($f) {
+        wrap_or_apply B::Stream::Operation::TakeUntil->new(
+            source    => $self,
+            predicate => blessed $f ? $f : B::Stream::Functional::Predicate->new( f => $f )
+        )
+    }
+
     method when ($predicate, $f) {
         wrap_or_apply B::Stream::Operation::When->new(
-            source    => $source,
+            source    => $self,
             consumer  => blessed $f ? $f : B::Stream::Functional::Consumer->new( f => $f ),
             predicate => blessed $predicate
                             ? $predicate
@@ -101,21 +128,21 @@ class B::Stream {
 
     method map ($f) {
         wrap_or_apply B::Stream::Operation::Map->new(
-            source => $source,
+            source => $self,
             mapper => blessed $f ? $f : B::Stream::Functional::Mapper->new( f => $f )
         )
     }
 
     method grep ($f) {
         wrap_or_apply B::Stream::Operation::Grep->new(
-            source    => $source,
+            source    => $self,
             predicate => blessed $f ? $f : B::Stream::Functional::Predicate->new( f => $f )
         )
     }
 
     method peek ($f) {
         wrap_or_apply B::Stream::Operation::Peek->new(
-            source   => $source,
+            source   => $self,
             consumer => blessed $f ? $f : B::Stream::Functional::Consumer->new( f => $f )
         )
     }
