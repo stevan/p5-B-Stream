@@ -24,6 +24,7 @@ use B::Stream::Operation::Grep;
 use B::Stream::Operation::Peek;
 use B::Stream::Operation::When;
 use B::Stream::Operation::TakeUntil;
+use B::Stream::Operation::Buffered;
 
 use B::Stream::Source;
 use B::Stream::Source::Optree;
@@ -145,5 +146,9 @@ class B::Stream :isa(B::Stream::Source) {
             source   => $self,
             consumer => blessed $f ? $f : B::Stream::Functional::Consumer->new( f => $f )
         )
+    }
+
+    method buffered {
+        wrap_or_apply B::Stream::Operation::Buffered->new( source => $self )
     }
 }

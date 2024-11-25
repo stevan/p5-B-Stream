@@ -6,3 +6,5 @@ class B::Stream::Source {
     method     next { ... }
     method has_next { ... }
 }
+
+
