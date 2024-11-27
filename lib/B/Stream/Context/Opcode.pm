@@ -49,6 +49,28 @@ class B::Stream::Context::Opcode :isa(B::Stream::Context) {
 
     method parent { $stack->[-1] }
 
+    method is_child  ($o) { $self->addr == $o->parent->addr }
+    method is_parent ($o) { $self->parent->addr == $o->addr }
+
+    method is_sibling ($o) {
+        ($o->depth == $depth)
+            && $self->parent->is_equal_to($o->parent)
+    }
+
+    method is_ancestor ($o) {
+        ($o->depth > $depth)                       # skip if the depth not greater than us
+            && ($o->is_parent($self)               # it is an anscestor if it is our parent
+                || $self->parent->is_ancestor($o)) # otherwise, check our parent
+    }
+
+    method is_descendant ($o) {
+        ($o->depth < $depth)                          # skip if the depth is less than us
+            && ($o->is_child($self)                   # it is a descendant if it is our child
+                || $self->is_descendant($op->parent)) # otherwise, check their parent
+    }
+
+    method is_equal_to ($other) { $self->addr == $other->addr }
+
     method to_string {
         sprintf '%s[%s](%d)' => $self->type, $self->name, $self->addr;
     }
