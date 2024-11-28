@@ -5,49 +5,59 @@ use experimental qw[ class ];
 use B::Stream::Parser::Observer;
 use B::Stream::Parser::Event;
 
+use B::Stream::Parser::Tree;
+use B::Stream::Parser::Tree::Builder;
+
 class B::Stream::Parser {
     field $stream :param :reader;
 
+    field $tree_builder;
     field $current_statement;
     field @stack;
 
-    method parse ($observer) {
+    ADJUST {
+        $tree_builder = B::Stream::Parser::Tree::Builder->new;
+    }
+
+    method parse {
+
         my ($root, $error);
         try {
             $stream->foreach(sub ($op) {
                 $root //= $op;
-                $observer->on_next( $_ ) foreach $self->parse_op( $op );
+                $tree_builder->on_next( $_ ) foreach $self->parse_op( $op );
             });
         } catch ($e) {
             $error = $e;
         }
 
         if ($error) {
-            $observer->on_error($error);
-            return false;
+            $tree_builder->on_error($error);
+            return $tree_builder->error;
         }
 
         unless ($root) {
-            $observer->on_error("No root found!");
-            return false;
+            $tree_builder->on_error("No root found!");
+            return $tree_builder->error;
         }
 
         if ($current_statement) {
             #warn join ', ' => @stack;
             while (@stack) {
                 last if $stack[-1]->addr == $current_statement->parent->addr;
-                $observer->on_next(B::Stream::Parser::Event::LeaveExpression->new( op => pop @stack ));
+                $tree_builder->on_next(B::Stream::Parser::Event::LeaveExpression->new( op => pop @stack ));
             }
-            $observer->on_next(B::Stream::Parser::Event::LeaveStatement->new( op => $current_statement ));
+            $tree_builder->on_next(B::Stream::Parser::Event::LeaveStatement->new( op => $current_statement ));
         }
 
         while (@stack) {
-            $observer->on_next(B::Stream::Parser::Event::LeaveExpression->new( op => pop @stack ));
+            $tree_builder->on_next(B::Stream::Parser::Event::LeaveExpression->new( op => pop @stack ));
         }
 
-        $observer->on_next(B::Stream::Parser::Event::LeaveSubroutine->new( op => $root ));
-        $observer->on_completed;
-        return true;
+        $tree_builder->on_next(B::Stream::Parser::Event::LeaveSubroutine->new( op => $root ));
+        $tree_builder->on_completed;
+
+        return $tree_builder->build;
     }
 
     method parse_op ($op) {

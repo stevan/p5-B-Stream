@@ -3,6 +3,12 @@ use v5.40;
 use experimental qw[ class ];
 
 class B::Stream::Parser::Observer {
+    method on_next  ($e) { ... }
+    method on_error ($e) { ... }
+    method on_completed  { ... }
+}
+
+class B::Stream::Parser::Observer::Simple :isa(B::Stream::Parser::Observer) {
     field $on_next      :param;
     field $on_error     :param;
     field $on_completed :param;
