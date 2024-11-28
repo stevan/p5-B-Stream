@@ -52,6 +52,8 @@ class B::Stream::Context::Opcode :isa(B::Stream::Context) {
     method is_child  ($o) { $self->addr == $o->parent->addr }
     method is_parent ($o) { $self->parent->addr == $o->addr }
 
+    method has_sibling { !! ${ $op->sibling } }
+
     method is_sibling ($o) {
         ($o->depth == $depth)
             && $self->parent->is_equal_to($o->parent)

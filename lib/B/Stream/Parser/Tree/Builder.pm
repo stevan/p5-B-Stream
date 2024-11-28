@@ -4,10 +4,12 @@ use experimental qw[ class ];
 
 class B::Stream::Parser::Tree::Builder :isa(B::Stream::Parser::Observer) {
     field @stack        :reader;
+    field $error        :reader;
+    field $result       :reader;
     field $is_completed :reader = false;
 
-    field $error;
-    field $result;
+    method has_error  { defined $error  }
+    method has_result { defined $result }
 
     method build {
         die "Cannot call build if there has been an error"
@@ -18,23 +20,39 @@ class B::Stream::Parser::Tree::Builder :isa(B::Stream::Parser::Observer) {
     }
 
     method on_next ($e) {
+        say sprintf '%s- %s' => ('  ' x $e->op->depth), $e->to_string;
         return if $error || $is_completed;
 
+        say '== >TREE ==============================';
+        say "GOT: $e";
+        say "-- BEFORE -----------------------------";
+        say "  - ".join "\n  - " => map $_->node, @stack;
+
         if ($e isa B::Stream::Parser::Event::EnterSubroutine ||
+            $e isa B::Stream::Parser::Event::EnterPreamble   ||
             $e isa B::Stream::Parser::Event::EnterStatement  ||
-            $e isa B::Stream::Parser::Event::EnterExpression ||
-            $e isa B::Stream::Parser::Event::Terminal        ){
+            $e isa B::Stream::Parser::Event::EnterExpression ){
             push @stack => B::Stream::Parser::Tree->new( node => $e );
         }
-        elsif ($e isa B::Stream::Parser::Event::LeaveExpression) {
+        elsif ($e isa B::Stream::Parser::Event::Terminal){
+            $stack[-1]->add_children(
+                B::Stream::Parser::Tree->new( node => $e )
+            );
+        }
+        elsif ($e isa B::Stream::Parser::Event::LeaveExpression ){
             my @children = $self->collect_children( $e );
             $stack[-1]->add_children( reverse @children );
         }
         elsif ($e isa B::Stream::Parser::Event::LeaveStatement  ||
+               $e isa B::Stream::Parser::Event::LeavePreamble   ||
                $e isa B::Stream::Parser::Event::LeaveSubroutine ){
             my @children = $self->collect_children( $e );
             $stack[-1]->add_children( @children );
         }
+
+        say "-- AFTER ------------------------------";
+        say "  - ".join "\n  - " => map $_->node, @stack;
+        say '== <TREE ==============================';
     }
 
     method on_completed {

@@ -19,6 +19,9 @@ class B::Stream::Parser::Event {
 class B::Stream::Parser::Event::EnterSubroutine :isa(B::Stream::Parser::Event) {}
 class B::Stream::Parser::Event::LeaveSubroutine :isa(B::Stream::Parser::Event) {}
 
+class B::Stream::Parser::Event::EnterPreamble :isa(B::Stream::Parser::Event) {}
+class B::Stream::Parser::Event::LeavePreamble :isa(B::Stream::Parser::Event) {}
+
 class B::Stream::Parser::Event::EnterStatement  :isa(B::Stream::Parser::Event) {}
 class B::Stream::Parser::Event::LeaveStatement  :isa(B::Stream::Parser::Event) {}
 

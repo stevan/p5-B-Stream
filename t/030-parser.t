@@ -13,17 +13,17 @@ use ok 'B::Stream::Parser';
 use B::Stream::Tools::Debug;
 
 package Foo::Bar {
-    sub foobar {
+    sub foobar ($x, $y) {
         my $foo = 10;
         my $bar = 100;
         my $baz = ($foo + 5);
     }
 }
 
-my $parser = B::Stream::Parser->new(
-    stream => B::Stream->new( from => \&Foo::Bar::foobar )
-);
+B::Stream->new( from => \&Foo::Bar::foobar )->foreach(\&print_op);
 
+my $stream = B::Stream->new( from => \&Foo::Bar::foobar );
+my $parser = B::Stream::Parser->new( stream => $stream );
 my $result = $parser->parse;
 
 warn Dumper $result->to_JSON;

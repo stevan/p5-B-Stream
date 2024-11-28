@@ -12,6 +12,7 @@ class B::Stream::Parser {
     field $stream :param :reader;
 
     field $tree_builder;
+    field $in_preamble;
     field $current_statement;
     field @stack;
 
@@ -61,8 +62,31 @@ class B::Stream::Parser {
     }
 
     method parse_op ($op) {
-        return B::Stream::Parser::Event::EnterSubroutine->new( op => $op )
-            if $op->name eq 'leavesub';
+        #say '== >PARSER ============================';
+        #say "GOT      : $op";
+        #say "CURRENT  : ".($current_statement // '~');
+        #say "PREAMBLE : ".($in_preamble     ? 'yes' : 'no');
+        #say "SIBLING? : ".($op->has_sibling ? (sprintf 'yes(%s)', ${ $op->op->sibling }) : 'no');
+        #say "-- BEFORE -----------------------------";
+        #say "  - ".join "\n  - " => @stack;
+
+        my sub after {
+            #say "-- AFTER ------------------------------";
+            #say "  - ".join "\n  - " => @stack;
+            #say '== <PARSER ============================';
+        }
+
+        if ($op->name eq 'leavesub') {
+            after();
+            return B::Stream::Parser::Event::EnterSubroutine->new( op => $op )
+        }
+
+        if ($op->name eq 'argcheck' && $op->is_null) {
+            $in_preamble = $op;
+            push @stack => $op;
+            after();
+            return B::Stream::Parser::Event::EnterPreamble->new( op => $op );
+        }
 
         if ($op->name eq 'nextstate') {
             my @events;
@@ -71,18 +95,30 @@ class B::Stream::Parser {
                 $current_statement = $op;
             }
             elsif ($op->addr != $current_statement->addr) {
-                #warn join ', ' => @stack;
-                while (@stack) {
-                    last if $stack[-1]->addr == $op->parent->addr;
-                    push @events => B::Stream::Parser::Event::LeaveExpression->new( op => pop @stack );
+                if ($in_preamble && !$op->has_sibling) {
+                    push @events => B::Stream::Parser::Event::LeaveStatement->new( op => $current_statement );
+                    while (@stack) {
+                        last if $stack[-1]->addr == $in_preamble->addr;
+                        push @events => B::Stream::Parser::Event::LeaveExpression->new( op => pop @stack );
+                    }
+                    push @events => B::Stream::Parser::Event::LeavePreamble->new( op => $in_preamble );
+                    $current_statement = undef;
+                    $in_preamble = undef;
+                    pop @stack;
                 }
-
-                push @events => (
-                    B::Stream::Parser::Event::LeaveStatement->new( op => $current_statement ),
-                    B::Stream::Parser::Event::EnterStatement->new( op => $op )
-                );
-                $current_statement = $op;
+                else {
+                    while (@stack) {
+                        last if $stack[-1]->addr == $op->parent->addr;
+                        push @events => B::Stream::Parser::Event::LeaveExpression->new( op => pop @stack );
+                    }
+                    push @events => B::Stream::Parser::Event::LeaveStatement->new( op => $current_statement );
+                    push @events => B::Stream::Parser::Event::EnterStatement->new( op => $op );
+                    $current_statement = $op;
+                }
             }
+
+            after();
+
             return @events;
         }
 
@@ -101,6 +137,8 @@ class B::Stream::Parser {
         else {
             push @events => B::Stream::Parser::Event::Terminal->new( op => $op );
         }
+
+        after();
 
         return @events;
     }
