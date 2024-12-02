@@ -13,10 +13,14 @@ use ok 'B::Stream::Parser';
 use B::Stream::Tools::Debug;
 
 package Foo::Bar {
-    sub foobar ($x, $y) {
+    sub foobar ($x) {
         my $foo = 10;
-        my $bar = 100;
-        my $baz = ($foo + 5);
+        {
+            my $bar = 100;
+            foreach my $x ( 1 .. 100 ) {
+                my $baz = ($foo + 5);
+            }
+        }
     }
 }
 
@@ -26,7 +30,11 @@ my $stream = B::Stream->new( from => \&Foo::Bar::foobar );
 my $parser = B::Stream::Parser->new( stream => $stream );
 my $result = $parser->parse;
 
-warn Dumper $result->to_JSON;
+die $result // '!!!!' unless defined $result && blessed $result;
+
+$result->traverse(sub ($n, $depth) {
+    say(('  ' x $depth), $n->node->to_string);
+});
 
 done_testing;
 

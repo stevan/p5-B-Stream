@@ -9,15 +9,22 @@ use B::Stream::Parser::Tree;
 use B::Stream::Parser::Tree::Builder;
 
 class B::Stream::Parser {
+    use constant DEBUG => $ENV{DEBUG_PARSER} // 0;
+
     field $stream :param :reader;
 
     field $tree_builder;
-    field $in_preamble;
-    field $current_statement;
+    field @statements;
     field @stack;
 
     ADJUST {
         $tree_builder = B::Stream::Parser::Tree::Builder->new;
+    }
+
+    method flush_stack {
+        my @events = reverse @stack;
+        @stack = ();
+        return @events;
     }
 
     method parse {
@@ -42,105 +49,157 @@ class B::Stream::Parser {
             return $tree_builder->error;
         }
 
-        if ($current_statement) {
-            #warn join ', ' => @stack;
-            while (@stack) {
-                last if $stack[-1]->addr == $current_statement->parent->addr;
-                $tree_builder->on_next(B::Stream::Parser::Event::LeaveExpression->new( op => pop @stack ));
-            }
-            $tree_builder->on_next(B::Stream::Parser::Event::LeaveStatement->new( op => $current_statement ));
+        if (DEBUG) {
+            say '=============================================================';
+            say "-- BEFORE(statmements) --------------------------------------";
+            say join ', ' => map { '['.(join ', ' => @$_).']' } @statements;
+            say "-- BEFORE(stack) --------------------------------------------";
+            say "  - ".join "\n  - " => @stack;
         }
 
-        while (@stack) {
-            $tree_builder->on_next(B::Stream::Parser::Event::LeaveExpression->new( op => pop @stack ));
+        $tree_builder->on_next($_)
+            foreach $self->unwind_events( $self->flush_stack );
+
+        if (DEBUG) {
+            say "-- AFTER(statmements) ---------------------------------------";
+            say join ', ' => map { '['.(join ', ' => @$_).']' } @statements;
+            say "-- AFTER(stack) ---------------------------------------------";
+            say "  - ".join "\n  - " => @stack;
+            say '=============================================================';
         }
 
-        $tree_builder->on_next(B::Stream::Parser::Event::LeaveSubroutine->new( op => $root ));
         $tree_builder->on_completed;
 
         return $tree_builder->build;
     }
 
     method parse_op ($op) {
-        #say '== >PARSER ============================';
-        #say "GOT      : $op";
-        #say "CURRENT  : ".($current_statement // '~');
-        #say "PREAMBLE : ".($in_preamble     ? 'yes' : 'no');
-        #say "SIBLING? : ".($op->has_sibling ? (sprintf 'yes(%s)', ${ $op->op->sibling }) : 'no');
-        #say "-- BEFORE -----------------------------";
-        #say "  - ".join "\n  - " => @stack;
-
-        my sub after {
-            #say "-- AFTER ------------------------------";
-            #say "  - ".join "\n  - " => @stack;
-            #say '== <PARSER ============================';
+        if (DEBUG) {
+            say '>>> PARSER ==================================================';
+            say "GOT          : $op";
+            say '-------------------------------------------------------------';
+            say "DEPTH        : ".$op->depth;
+            say "DESCENDANTS? : ".($op->has_descendents ? 'yes' : 'no');
+            say "SIBLING?     : ".($op->has_sibling     ? (sprintf 'yes(%s)', ${ $op->op->sibling }) : 'no');
+            say "-- BEFORE(statmements) --------------------------------------";
+            say join ', ' => map { '['.(join ', ' => @$_).']' } @statements;
+            say "-- BEFORE(stack) --------------------------------------------";
+            say "  - ".join "\n  - " => @stack;
         }
-
-        if ($op->name eq 'leavesub') {
-            after();
-            return B::Stream::Parser::Event::EnterSubroutine->new( op => $op )
-        }
-
-        if ($op->name eq 'argcheck' && $op->is_null) {
-            $in_preamble = $op;
-            push @stack => $op;
-            after();
-            return B::Stream::Parser::Event::EnterPreamble->new( op => $op );
-        }
-
-        if ($op->name eq 'nextstate') {
-            my @events;
-            if (not defined $current_statement) {
-                push @events => B::Stream::Parser::Event::EnterStatement->new( op => $op );
-                $current_statement = $op;
-            }
-            elsif ($op->addr != $current_statement->addr) {
-                if ($in_preamble && !$op->has_sibling) {
-                    push @events => B::Stream::Parser::Event::LeaveStatement->new( op => $current_statement );
-                    while (@stack) {
-                        last if $stack[-1]->addr == $in_preamble->addr;
-                        push @events => B::Stream::Parser::Event::LeaveExpression->new( op => pop @stack );
-                    }
-                    push @events => B::Stream::Parser::Event::LeavePreamble->new( op => $in_preamble );
-                    $current_statement = undef;
-                    $in_preamble = undef;
-                    pop @stack;
-                }
-                else {
-                    while (@stack) {
-                        last if $stack[-1]->addr == $op->parent->addr;
-                        push @events => B::Stream::Parser::Event::LeaveExpression->new( op => pop @stack );
-                    }
-                    push @events => B::Stream::Parser::Event::LeaveStatement->new( op => $current_statement );
-                    push @events => B::Stream::Parser::Event::EnterStatement->new( op => $op );
-                    $current_statement = $op;
-                }
-            }
-
-            after();
-
-            return @events;
-        }
-
 
         my @events;
-        #warn join ', ' => @stack;
-        while (@stack) {
-            last if $stack[-1]->addr == $op->parent->addr;
-            push @events => B::Stream::Parser::Event::LeaveExpression->new( op => pop @stack );
-        }
 
-        if ($op->has_descendents) {
-            push @stack => $op;
-            push @events => B::Stream::Parser::Event::EnterExpression->new( op => $op );
+        if ($op->name eq 'leavesub') {
+            my $event = B::Stream::Parser::Event::EnterSubroutine->new( op => $op );
+            push @stack  => $event;
+            push @events => $event;
+        }
+        elsif ($op->name eq 'lineseq') {
+            my $event = B::Stream::Parser::Event::EnterStatementSequence->new( op => $op );
+            push @stack  => $event;
+            push @events => $event;
+            push @statements => [];
+        }
+        elsif ($op->name eq 'argcheck' && $op->is_null) {
+            my $event = B::Stream::Parser::Event::EnterPreamble->new( op => $op );
+            push @stack  => $event;
+            push @events => $event;
+        }
+        elsif ($op->name eq 'nextstate') {
+            my $event = B::Stream::Parser::Event::EnterStatement->new( op => $op );
+            if ($statements[-1]->@*) {
+                my $prev = pop $statements[-1]->@*;
+                push @events => $self->unwind_stack($event);
+            }
+
+            push $statements[-1]->@* => $event;
+            push @stack  => $event;
+            push @events => $event;
         }
         else {
-            push @events => B::Stream::Parser::Event::Terminal->new( op => $op );
+            my $event;
+            if ($op->has_descendents) {
+                $event = B::Stream::Parser::Event::EnterExpression->new( op => $op );
+            }
+            else {
+                $event = B::Stream::Parser::Event::Terminal->new( op => $op );
+            }
+
+            if ($event->op->depth < $stack[-1]->op->depth) {
+                DEBUG && say "We need to unwind the expression";
+                push @events => $self->unwind_stack($event);
+            }
+
+            push @stack  => $event;
+            push @events => $event;
         }
 
-        after();
+        if (DEBUG) {
+            say '';
+            say "-- AFTER(statmements) ---------------------------------------";
+            say join ', ' => map { '['.(join ', ' => @$_).']' } @statements;
+            say "-- AFTER(stack) ---------------------------------------------";
+            say "  - ".join "\n  - " => @stack;
+            say "~~ EVENTS ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~";
+            say "  - ".join "\n  - " => @events;
+            say '=============================================================';
+        }
 
         return @events;
     }
+
+    method unwind_stack ($next) {
+        DEBUG && say '-- Unwind Stack ----------------------------------------';
+        my @events;
+
+        while (@stack) {
+            DEBUG && say ">> CANDIDATE: ",$stack[-1];
+            DEBUG && say sprintf '>> curr: %d next(parent): %d',$stack[-1]->op->addr, $next->op->parent->addr;
+
+            last if $stack[-1]->op->addr == $next->op->parent->addr;
+
+            my $candidate = pop @stack;
+            push @events => $candidate;
+        }
+
+        return $self->unwind_events(@events);
+    }
+
+    method unwind_events (@events) {
+        DEBUG && say '-- Unwind Events ---------------------------------------';
+        DEBUG && say ">> Got ".(scalar @events)." events to unwind:\n>>  - ".(join "\n>>  - " => @events);
+
+        my @unwound;
+        foreach my $event (@events) {
+            DEBUG && say "?? Checking $event";
+
+            if ($event isa B::Stream::Parser::Event::Terminal) {
+                DEBUG && say ".. Got Terminal($event)";
+                next; # do nothing, the event was already emitted
+            }
+            elsif ($event isa B::Stream::Parser::Event::EnterStatementSequence) {
+                DEBUG && say ".. Got EnterStatementSequence($event), dropping statements...";
+                my $drop = pop @statements;
+                DEBUG && say "!! dropping !!",join ', ' => @$drop;
+            }
+
+            push @unwound => $event->create_compliment;
+        }
+
+        DEBUG && say ">> Got ".(scalar @unwound)." unwound events:\n>>  - ".(join "\n>>  - " => @unwound);
+
+        DEBUG && say '--------------------------------------------------------';
+        return @unwound;
+    }
+
 }
+
+
+
+
+
+
+
+
+
 

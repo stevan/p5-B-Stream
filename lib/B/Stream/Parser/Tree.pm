@@ -16,4 +16,11 @@ class B::Stream::Parser::Tree {
             children => [ map $_->to_JSON, @children ],
         }
     }
+
+    method traverse ($f, $depth=0) {
+        $f->($self, $depth);
+        foreach my $child (@children) {
+            $child->traverse( $f, $depth + 1 );
+        }
+    }
 }

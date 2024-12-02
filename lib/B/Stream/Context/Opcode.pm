@@ -50,7 +50,7 @@ class B::Stream::Context::Opcode :isa(B::Stream::Context) {
     method parent { $stack->[-1] }
 
     method is_child  ($o) { $self->addr == $o->parent->addr }
-    method is_parent ($o) { $self->parent->addr == $o->addr }
+    method is_parent ($o) { !($self->parent) || ($self->parent->addr == $o->addr) }
 
     method has_sibling { !! ${ $op->sibling } }
 
@@ -74,6 +74,6 @@ class B::Stream::Context::Opcode :isa(B::Stream::Context) {
     method is_equal_to ($other) { $self->addr == $other->addr }
 
     method to_string {
-        sprintf '%s[%s](%d)' => $self->type, $self->name, $self->addr;
+        sprintf '%s%s[%s](%d)' => ($is_null ? '~' : ''), $self->type, $self->name, $self->addr;
     }
 }
